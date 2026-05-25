@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Mode - Gestore Tornei</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; margin: 0; }
+        .bracket-container { display: flex; justify-content: center; align-items: flex-start; overflow-x: hidden; padding: 1.5rem 3rem; }
+        .bracket-inner { display: flex; align-items: center; gap: 3rem; width: max-content; transform-origin: center center; }
+        .bracket-column { display: flex; flex-direction: column; justify-content: space-around; gap: 2rem; min-width: 200px; }
+        .match-card { background: #1e293b; border: 2px solid #334155; border-radius: 1rem; overflow: hidden; position: relative; transition: all 0.3s; }
+        .match-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.5); }
+        .player-slot { padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: background 0.2s; }
+        .player-slot:hover { background: #2d3748; }
+        .player-slot:first-child { border-bottom: 1px solid #334155; }
+        .player-slot.winner { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+        .player-slot.bye { color: #64748b; font-style: italic; }
+        .connector { position: absolute; right: -3rem; top: 50%; width: 3rem; height: 2px; background: #334155; }
+        .connector-left { position: absolute; left: -3rem; top: 50%; width: 3rem; height: 2px; background: #334155; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const FOOTBALL_TEAMS = [
+            'AC MILAN','INTER','JUVENTUS','ROMA','LAZIO','NAPOLI','ATALANTA','FIORENTINA','TORINO','BOLOGNA','UDINESE','GENOA','SAMPDORIA','CAGLIARI','PALERMO','PARMA','VERONA','LECCE','BARI','VENEZIA','SASSUOLO','EMPOLI','MONZA',
+            'REAL MADRID','BARCELLONA','ATLETICO MADRID','SEVILLA','VALENCIA','VILLARREAL','ATHLETIC CLUB','REAL SOCIEDAD','BETIS',
+            'MANCHESTER CITY','MANCHESTER UNITED','LIVERPOOL','CHELSEA','ARSENAL','TOTTENHAM','NEWCASTLE','ASTON VILLA','WEST HAM',
+            'BAYERN MONACO','BORUSSIA DORTMUND','RB LIPSIA','BAYER LEVERKUSEN','SCHALKE 04','HAMBURGER SV',
+            'PARIS SAINT-GERMAIN','OLYMPIQUE MARSEILLE','LYON','MONACO','LILLE',
+            'AJAX','PSV','FEYENOORD',
+            'PORTO','BENFICA','SPORTING CP',
+            'CELTIC','RANGERS',
+            'GALATASARAY','FENERBAHCE','BESIKTAS',
+            'OLYMPIACOS','PANATHINAIKOS',
+            'SHANKTAR DONETSK','DINAMO KIEV',
+            'DINAMO ZAGABRIA','RED STAR BELGRADE',
+            'BOCA JUNIORS','RIVER PLATE','FLAMENGO','PALMEIRAS','SAO PAULO','CORINTHIANS','GREMIO','INTERNACIONAL',
+            'AL AHLY','ZAMALEK',
+            'AL HILAL','AL NASSR','AL ITTIHAD',
+            'NEW YORK CITY FC','LA GALAXY','INTER MIAMI',
+            'ITALIA','FRANCIA','SPAGNA','GERMANIA','INGHILTERRA','PORTOGALLO','OLANDA','BELGIO','CROAZIA','SVIZZERA','AUSTRIA','DANIMARCA','SVEZIA','NORVEGIA','IRLANDA','SCOZIA','GALLES','POLONIA','UCRAINA','SERBIA','TURCHIA','GRECIA','REPUBBLICA CECA','UNGHERIA','ROMANIA','BULGARIA',
+            'BRASILE','ARGENTINA','URUGUAY','COLOMBIA','CILE','PARAGUAY','ECUADOR','PERU','MESSICO','STATI UNITI','CANADA','COSTA RICA',
+            'MAROCCO','TUNISIA','ALGERIA','SENEGAL','NIGERIA','CAMERUN','GHANA','EGITTO','SUDAFRICA',
+            'GIAPPONE','COREA DEL SUD','AUSTRALIA','IRAN','ARABIA SAUDITA','QATAR'
+        ];
+
+        // --- COMPONENT: BRACKET VIEW ---
+        function BracketView({ bracket, onSetWinner, winner, resetTournament }) {
+            if (!bracket || bracket.length === 0) {
+                return (
+                    <div className="text-center py-20">
+                        <p className="text-slate-500 mb-4 italic">Tabellone non disponibile.</p>
+                        <button onClick={resetTournament} className="text-indigo-500 font-bold underline">Torna alla home</button>
+                    </div>
+                );
+            }
+
+            const containerRef = useRef(null);
+            const innerRef = useRef(null);
+            const [scale, setScale] = useState(1);
+
+            useEffect(() => {
+                const recalc = () => {
+                    const container = containerRef.current;
+                    const inner = innerRef.current;
+                    if (!container || !inner) return;
+
+                    const availableWidth = container.clientWidth;
+                    const contentWidth = inner.scrollWidth;
+                    if (!availableWidth || !contentWidth) return;
+
+                    const nextScale = Math.min(1, availableWidth / contentWidth);
+                    setScale(prev => (Math.abs(prev - nextScale) < 0.001 ? prev : nextScale));
+                };
+
+                recalc();
+                window.addEventListener('resize', recalc);
+                return () => window.removeEventListener('resize', recalc);
+            }, [bracket]);
+
+            const getRoundLabel = (rIdx) => (
+                rIdx === bracket.length - 1 ? 'Finale' : rIdx === bracket.length - 2 ? 'Semifinali' : `Round ${rIdx + 1}`
+            );
+
+            const renderMatchCard = (rIdx, mIdx, m, connectorDirection) => (
+                <div key={m.id} className="match-card shadow-lg">
+                    <div 
+                        onClick={() => onSetWinner(rIdx, mIdx, m.p1)}
+                        className={`player-slot ${m.winner?.id === m.p1?.id ? 'winner' : ''} ${m.p1?.isBye ? 'bye' : ''}`}
+                    >
+                        <span className="truncate max-w-[140px]">{(m.p1?.name || '---').toUpperCase()}</span>
+                        {m.winner?.id === m.p1?.id && <i className="fas fa-check-circle"></i>}
+                    </div>
+                    <div 
+                        onClick={() => onSetWinner(rIdx, mIdx, m.p2)}
+                        className={`player-slot ${m.winner?.id === m.p2?.id ? 'winner' : ''} ${m.p2?.isBye ? 'bye' : ''}`}
+                    >
+                        <span className="truncate max-w-[140px]">{(m.p2?.name || '---').toUpperCase()}</span>
+                        {m.winner?.id === m.p2?.id && <i className="fas fa-check-circle"></i>}
+                    </div>
+                    {connectorDirection === 'right' && rIdx < bracket.length - 1 && <div className="connector"></div>}
+                    {connectorDirection === 'left' && rIdx < bracket.length - 1 && <div className="connector-left"></div>}
+                </div>
+            );
+
+            return (
+                <div ref={containerRef} className="bracket-container custom-scrollbar">
+                    <div ref={innerRef} className="bracket-inner" style={{ transform: `scale(${scale})` }}>
+                        {bracket.length === 1 ? (
+                            <div className="bracket-column items-center justify-center">
+                                <div className="text-center mb-6">
+                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Finale</span>
+                                </div>
+                                {renderMatchCard(0, 0, bracket[0][0], 'none')}
+                                {winner && (
+                                    <div className="text-center mt-10">
+                                        <i className="fas fa-crown text-5xl text-yellow-400 mb-3 block"></i>
+                                        <div className="text-2xl font-black text-white uppercase tracking-tighter">{(winner.name || '').toUpperCase()}</div>
+                                        <div className="text-indigo-500 font-black text-xs uppercase mt-2">Campione</div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                {Array.from({ length: bracket.length - 1 }, (_, rIdx) => {
+                                    const roundMatches = bracket[rIdx] || [];
+                                    const half = Math.floor(roundMatches.length / 2);
+                                    const leftMatches = roundMatches.slice(0, half).map((m, mIdx) => ({ m, mIdx }));
+
+                                    return (
+                                        <div key={`L-${rIdx}`} className="bracket-column">
+                                            <div className="text-center mb-6">
+                                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">
+                                                    {getRoundLabel(rIdx)}
+                                                </span>
+                                            </div>
+                                            {leftMatches.map(({ m, mIdx }) => renderMatchCard(rIdx, mIdx, m, 'right'))}
+                                        </div>
+                                    );
+                                })}
+
+                                <div className="bracket-column items-center justify-center">
+                                    <div className="text-center mb-6">
+                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Finale</span>
+                                    </div>
+                                    {renderMatchCard(bracket.length - 1, 0, bracket[bracket.length - 1][0], 'none')}
+                                    {winner && (
+                                        <div className="text-center mt-10">
+                                            <i className="fas fa-crown text-5xl text-yellow-400 mb-3 block"></i>
+                                            <div className="text-2xl font-black text-white uppercase tracking-tighter">{(winner.name || '').toUpperCase()}</div>
+                                            <div className="text-indigo-500 font-black text-xs uppercase mt-2">Campione</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {Array.from({ length: bracket.length - 1 }, (_, idx) => {
+                                    const rIdx = bracket.length - 2 - idx;
+                                    const roundMatches = bracket[rIdx] || [];
+                                    const half = Math.floor(roundMatches.length / 2);
+                                    const rightMatches = roundMatches
+                                        .map((m, mIdx) => ({ m, mIdx }))
+                                        .slice(half)
+                                        .reverse();
+
+                                    return (
+                                        <div key={`R-${rIdx}`} className="bracket-column">
+                                            <div className="text-center mb-6">
+                                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">
+                                                    {getRoundLabel(rIdx)}
+                                                </span>
+                                            </div>
+                                            {rightMatches.map(({ m, mIdx }) => renderMatchCard(rIdx, mIdx, m, 'left'))}
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- MAIN APP ---
+        function App() {
+            const getSafeJSON = (key, defaultValue) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : defaultValue;
+                } catch (e) { return defaultValue; }
+            };
+
+            const [players, setPlayers] = useState(() => getSafeJSON('tm_players', []));
+            const [newPlayerName, setNewPlayerName] = useState('');
+            const [playerError, setPlayerError] = useState('');
+            const [autoGenTotal, setAutoGenTotal] = useState(16);
+            const [autoGenError, setAutoGenError] = useState('');
+            const [tournamentMode, setTournamentMode] = useState(() => localStorage.getItem('tm_mode') || 'knockout');
+            const [tournamentStarted, setTournamentStarted] = useState(() => localStorage.getItem('tm_started') === 'true');
+            const [matches, setMatches] = useState(() => getSafeJSON('tm_matches', []));
+            const [round, setRound] = useState(() => localStorage.getItem('tm_round') || '1');
+            const [winner, setWinnerState] = useState(() => getSafeJSON('tm_winner', null));
+            const [bracket, setBracket] = useState(() => getSafeJSON('tm_bracket', null));
+            const [groups, setGroups] = useState(() => getSafeJSON('tm_groups', []));
+            const [numGroupsConfig, setNumGroupsConfig] = useState(() => parseInt(localStorage.getItem('tm_num_groups') || '1'));
+            const [qualifiersPerGroup, setQualifiersPerGroup] = useState(() => parseInt(localStorage.getItem('tm_qualifiers') || '2'));
+
+            useEffect(() => {
+                localStorage.setItem('tm_players', JSON.stringify(players));
+                localStorage.setItem('tm_mode', tournamentMode);
+                localStorage.setItem('tm_started', tournamentStarted);
+                localStorage.setItem('tm_matches', JSON.stringify(matches));
+                localStorage.setItem('tm_round', round);
+                localStorage.setItem('tm_winner', JSON.stringify(winner));
+                localStorage.setItem('tm_groups', JSON.stringify(groups));
+                localStorage.setItem('tm_num_groups', numGroupsConfig);
+                localStorage.setItem('tm_qualifiers', qualifiersPerGroup);
+                localStorage.setItem('tm_bracket', JSON.stringify(bracket));
+            }, [players, tournamentMode, tournamentStarted, matches, round, winner, groups, numGroupsConfig, qualifiersPerGroup, bracket]);
+
+            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+
+            const getGoalsFromMatch = (m) => {
+                const g1 = Number.isFinite(m.goals1) ? m.goals1 : null;
+                const g2 = Number.isFinite(m.goals2) ? m.goals2 : null;
+                if (g1 !== null && g2 !== null) return { g1, g2, hasScore: true };
+                if (m.isDraw) return { g1: 0, g2: 0, hasScore: true };
+                if (m.winner?.id && m.p1?.id && m.winner.id === m.p1.id) return { g1: 1, g2: 0, hasScore: true };
+                if (m.winner?.id && m.p2?.id && m.winner.id === m.p2.id) return { g1: 0, g2: 1, hasScore: true };
+                return { g1: 0, g2: 0, hasScore: false };
+            };
+
+            const pickRandom = (arr, count) => {
+                const copy = [...arr];
+                for (let i = copy.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [copy[i], copy[j]] = [copy[j], copy[i]];
+                }
+                return copy.slice(0, count);
+            };
+
+            const autoGenerateTeams = () => {
+                const target = parseInt(autoGenTotal, 10);
+                if (!Number.isFinite(target) || target < 2) {
+                    setAutoGenError('Inserisci un numero valido (min 2)');
+                    return;
+                }
+                if (target > FOOTBALL_TEAMS.length) {
+                    setAutoGenError(`Numero troppo alto (max ${FOOTBALL_TEAMS.length})`);
+                    return;
+                }
+                const needed = target - players.length;
+                if (needed <= 0) {
+                    setAutoGenError(`Hai già ${players.length} squadre`);
+                    return;
+                }
+                const existing = new Set(players.map(p => (p.name || '').toUpperCase()));
+                const available = FOOTBALL_TEAMS.filter(n => !existing.has(n));
+                if (needed > available.length) {
+                    setAutoGenError('Non ci sono abbastanza squadre disponibili');
+                    return;
+                }
+                const picked = pickRandom(available, needed);
+                const baseId = Date.now();
+                setPlayers([...players, ...picked.map((name, idx) => ({ id: baseId + idx, name }))]);
+                setAutoGenError('');
+                if (playerError) setPlayerError('');
+            };
+
+            const startKnockout = (participants) => {
+                if (participants.length < 2) return alert('Servono almeno 2 giocatori!');
+                const shuffled = shuffle(participants);
+                const numRounds = Math.ceil(Math.log2(shuffled.length));
+                const bracketSize = Math.pow(2, numRounds);
+
+                const newBracket = [];
+                const r0 = [];
+                const byes = bracketSize - shuffled.length;
+                for (let i = 0; i < byes; i++) {
+                    r0.push({ id: `m-0-${r0.length}`, p1: shuffled[i], p2: { id: `bye-${Date.now()}-${i}`, name: 'BYE', isBye: true }, winner: shuffled[i] });
+                }
+                for (let i = byes; i < shuffled.length; i += 2) {
+                    r0.push({ id: `m-0-${r0.length}`, p1: shuffled[i], p2: shuffled[i + 1], winner: null });
+                }
+                newBracket.push(r0);
+                for (let r = 1; r < numRounds; r++) {
+                    const rMatches = [];
+                    for (let i = 0; i < newBracket[r-1].length; i += 2) {
+                        rMatches.push({ id: `m-${r}-${i/2}`, p1: newBracket[r-1][i].winner, p2: newBracket[r-1][i+1].winner, winner: null });
+                    }
+                    newBracket.push(rMatches);
+                }
+                setBracket(newBracket);
+                setTournamentStarted(true);
+                setRound('Eliminazione');
+            };
+
+            const startGroups = () => {
+                if (players.length < numGroupsConfig * 2) return alert('Pochi giocatori per questi gironi!');
+                const shuffled = shuffle(players);
+                const newGroups = [];
+                for (let i = 0; i < numGroupsConfig; i++) newGroups.push({ id: i, name: `Girone ${String.fromCharCode(65 + i)}`, players: [] });
+                shuffled.forEach((p, idx) => newGroups[idx % numGroupsConfig].players.push(p));
+
+                const allMatches = [];
+                newGroups.forEach(g => {
+                    let temp = [...g.players];
+                    if (temp.length % 2 !== 0) temp.push({ id: `bye-${g.id}`, name: 'BYE', isBye: true });
+                    const n = temp.length;
+                    const matchesByDay = Array.from({ length: n - 1 }, () => []);
+                    let matchCounter = 0;
+                    for (let day = 0; day < n - 1; day++) {
+                        for (let i = 0; i < n / 2; i++) {
+                            const p1 = temp[i], p2 = temp[n - 1 - i];
+                            if (!p1.isBye && !p2.isBye) matchesByDay[day].push({ id: `gm-${g.id}-${Date.now()}-${matchCounter++}`, groupId: g.id, day, p1, p2, goals1: null, goals2: null, winner: null, isDraw: false });
+                        }
+                        temp.splice(1, 0, temp.pop());
+                    }
+
+                    const dayOrder = shuffle(Array.from({ length: n - 1 }, (_, i) => i));
+                    dayOrder.forEach((oldDay, newDayIdx) => {
+                        const shuffledDayMatches = shuffle(matchesByDay[oldDay]).map(m => ({ ...m, day: newDayIdx + 1 }));
+                        allMatches.push(...shuffledDayMatches);
+                    });
+                });
+                setGroups(newGroups);
+                setMatches(allMatches);
+                setTournamentStarted(true);
+                setRound('Gironi');
+            };
+
+            const setMatchResult = (id, winnerObj, isDraw = false) => {
+                setMatches(matches.map(m => m.id === id ? { ...m, winner: isDraw ? null : winnerObj, isDraw } : m));
+            };
+
+            const setGroupScore = (id, goals1, goals2) => {
+                setMatches(matches.map(m => {
+                    if (m.id !== id) return m;
+                    const isDraw = goals1 === goals2;
+                    const winnerObj = isDraw ? null : (goals1 > goals2 ? m.p1 : m.p2);
+                    return { ...m, goals1, goals2, winner: winnerObj, isDraw };
+                }));
+            };
+
+            const incrementGroupGoal = (id, side) => {
+                setMatches(matches.map(m => {
+                    if (m.id !== id) return m;
+                    const { g1, g2, hasScore } = getGoalsFromMatch(m);
+                    let goals1 = hasScore ? g1 : 0;
+                    let goals2 = hasScore ? g2 : 0;
+                    if (side === 'p1') goals1++;
+                    else if (side === 'p2') goals2++;
+                    const isDraw = goals1 === goals2;
+                    const winnerObj = isDraw ? null : (goals1 > goals2 ? m.p1 : m.p2);
+                    return { ...m, goals1, goals2, winner: winnerObj, isDraw };
+                }));
+            };
+
+            const setBracketWinner = (rIdx, mIdx, winObj) => {
+                if (!winObj || winObj.isBye) return;
+                const nb = [...bracket];
+                const match = nb?.[rIdx]?.[mIdx];
+                if (!match?.p1 || !match?.p2) return;
+                if (match.p1.isBye || match.p2.isBye) return;
+                nb[rIdx][mIdx].winner = winObj;
+                if (rIdx + 1 < nb.length) {
+                    const nextIdx = Math.floor(mIdx / 2);
+                    if (mIdx % 2 === 0) nb[rIdx + 1][nextIdx].p1 = winObj;
+                    else nb[rIdx + 1][nextIdx].p2 = winObj;
+                } else setWinnerState(winObj);
+                setBracket(nb);
+            };
+
+            const calculateStandings = (gid) => {
+                const group = groups.find(g => g.id === gid);
+                if (!group) return [];
+                const stats = group.players.map(p => ({ ...p, pts: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 }));
+                matches.filter(m => m.groupId === gid).forEach(m => {
+                    const { g1, g2, hasScore } = getGoalsFromMatch(m);
+                    if (hasScore) {
+                        const p1 = stats.find(s => s.id === m.p1.id), p2 = stats.find(s => s.id === m.p2.id);
+                        if (p1 && p2) {
+                            p1.played++; p2.played++;
+                            p1.gf += g1; p1.ga += g2;
+                            p2.gf += g2; p2.ga += g1;
+                            if (g1 === g2) { p1.pts++; p2.pts++; p1.drawn++; p2.drawn++; }
+                            else if (g1 > g2) { p1.pts += 3; p1.won++; p2.lost++; }
+                            else { p2.pts += 3; p2.won++; p1.lost++; }
+                        }
+                    }
+                });
+                return stats.sort((a, b) => b.pts - a.pts || ((b.gf - b.ga) - (a.gf - a.ga)) || b.gf - a.gf || b.won - a.won);
+            };
+
+            const resetTournament = () => {
+                if (confirm('Resettare tutto?')) {
+                    localStorage.clear();
+                    window.location.reload();
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center p-6">
+                    <header className="w-full max-w-[95vw] text-center mb-10">
+                        <h1 className="text-5xl font-black italic tracking-tighter mb-4">TOURNAMENT <span className="text-indigo-500">MODE</span></h1>
+                        {!tournamentStarted && (
+                            <div className="inline-flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
+                                <button onClick={() => setTournamentMode('knockout')} className={`px-6 py-2 rounded-xl font-bold ${tournamentMode === 'knockout' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>ELIMINAZIONE</button>
+                                <button onClick={() => setTournamentMode('groups')} className={`px-6 py-2 rounded-xl font-bold ${tournamentMode === 'groups' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>GIRONI</button>
+                            </div>
+                        )}
+                    </header>
+
+                    <main className="w-full max-w-[95vw]">
+                        {!tournamentStarted ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <section className="md:col-span-2 bg-slate-800 p-8 rounded-[2rem] border border-slate-700 shadow-2xl">
+                                    <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-indigo-400">Partecipanti <span className="text-slate-500 text-xs font-black ml-2">({players.length})</span></h2>
+                                    <form onSubmit={(e) => { e.preventDefault(); const candidate = newPlayerName.trim().toUpperCase(); if (!candidate) return; if (players.some(p => (p.name || '').toUpperCase() === candidate)) { setPlayerError('Nome squadra già presente'); return; } setPlayers([...players, { id: Date.now(), name: candidate }]); setNewPlayerName(''); setPlayerError(''); }} className="flex gap-3 mb-6">
+                                        <input type="text" value={newPlayerName} onChange={e => { setNewPlayerName(e.target.value); if (playerError) setPlayerError(''); }} placeholder="Nome Squadra" className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500" />
+                                        <button type="submit" className="bg-indigo-600 px-6 rounded-xl font-bold">AGGIUNGI</button>
+                                    </form>
+                                    {playerError && <div className="text-red-400 text-xs font-bold mb-6">{playerError}</div>}
+                                    <div className="flex items-end gap-3 mb-3">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-black text-slate-500 uppercase">Auto-generazione (test)</label>
+                                            <input type="number" min="2" max={FOOTBALL_TEAMS.length} value={autoGenTotal} onChange={e => { setAutoGenTotal(e.target.value); if (autoGenError) setAutoGenError(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-indigo-400 font-black" />
+                                        </div>
+                                        <button type="button" onClick={autoGenerateTeams} className="bg-slate-700 px-6 py-3 rounded-xl font-black hover:bg-slate-600">GENERA</button>
+                                    </div>
+                                    {autoGenError && <div className="text-red-400 text-xs font-bold mb-6">{autoGenError}</div>}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto custom-scrollbar">
+                                        {players.map(p => (
+                                            <div key={p.id} className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                                                <span className="font-bold uppercase text-sm">{p.name}</span>
+                                                <button onClick={() => setPlayers(players.filter(x => x.id !== p.id))} className="text-slate-600 hover:text-red-500"><i className="fas fa-trash"></i></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                                <section className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700 shadow-2xl flex flex-col">
+                                    <h2 className="text-xl font-black mb-6 uppercase tracking-widest text-indigo-400">Opzioni</h2>
+                                    {tournamentMode === 'groups' && (
+                                        <div className="space-y-4 mb-6">
+                                            <div><label className="text-[10px] font-black text-slate-500 uppercase">Gironi</label><input type="number" value={numGroupsConfig} onChange={e => setNumGroupsConfig(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-indigo-400 font-bold" /></div>
+                                            <div><label className="text-[10px] font-black text-slate-500 uppercase">Qualificati</label><input type="number" value={qualifiersPerGroup} onChange={e => setQualifiersPerGroup(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-indigo-400 font-bold" /></div>
+                                        </div>
+                                    )}
+                                    <button onClick={() => tournamentMode === 'knockout' ? startKnockout(players) : startGroups()} disabled={players.length < 2} className="w-full bg-indigo-600 py-4 rounded-2xl font-black mt-auto hover:bg-indigo-700 disabled:opacity-50">INIZIA</button>
+                                </section>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-800 rounded-[2rem] border border-slate-700 shadow-2xl overflow-hidden">
+                                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                                    <h2 className="text-2xl font-black italic tracking-tighter">ROAD TO <span className="text-indigo-500">VICTORY</span></h2>
+                                    <button onClick={resetTournament} className="text-slate-500 hover:text-red-500 font-black text-[10px] uppercase">Reset</button>
+                                </div>
+                                {round === 'Gironi' ? (
+                                    <div className="p-8">
+                                        {groups.map(g => (
+                                            <div key={g.id} className="mb-10">
+                                                <h3 className="text-indigo-500 font-black mb-4 uppercase tracking-widest">{g.name}</h3>
+                                                <div className="overflow-x-auto mb-6"><table className="w-full text-left text-xs"><thead className="text-slate-500 border-b border-slate-700"><tr><th className="p-2">#</th><th className="p-2">SQUADRA</th><th className="p-2">PT</th><th className="p-2">G</th><th className="p-2">GF</th><th className="p-2">GS</th><th className="p-2">DR</th></tr></thead><tbody>{calculateStandings(g.id).map((s, i) => (<tr key={s.id} className={i < qualifiersPerGroup ? 'bg-indigo-500/10' : ''}><td className="p-2">{i+1}</td><td className="p-2 font-bold">{s.name.toUpperCase()}</td><td className="p-2 font-black text-indigo-500">{s.pts}</td><td className="p-2">{s.played}</td><td className="p-2">{s.gf}</td><td className="p-2">{s.ga}</td><td className="p-2 font-black">{s.gf - s.ga}</td></tr>))}</tbody></table></div>
+                                                {(() => {
+                                                    const groupMatches = matches.filter(m => m.groupId === g.id);
+                                                    const days = [...new Set(groupMatches.map(m => m.day ?? 1))].sort((a, b) => a - b);
+                                                    return (
+                                                        <div className="space-y-4">
+                                                            {days.map(dayNum => (
+                                                                <div key={`day-${g.id}-${dayNum}`}>
+                                                                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Giornata {dayNum}</div>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                        {groupMatches.filter(m => (m.day ?? 1) === dayNum).map(m => {
+                                                                            const { g1, g2, hasScore } = getGoalsFromMatch(m);
+                                                                            const scoreText = hasScore ? `${g1}-${g2}` : '—';
+                                                                            const p1Winner = hasScore && g1 > g2;
+                                                                            const p2Winner = hasScore && g2 > g1;
+                                                                            const isDraw = hasScore && g1 === g2;
+                                                                            return (
+                                                                            <div key={m.id} className="bg-slate-900 p-2 rounded-lg border border-slate-700 flex justify-between text-[10px]">
+                                                                                <button onClick={() => incrementGroupGoal(m.id, 'p1')} className={`flex-1 p-2 rounded font-bold ${p1Winner ? 'bg-indigo-600' : ''}`}>{m.p1.name.toUpperCase()}</button>
+                                                                                <button onClick={() => setGroupScore(m.id, 0, 0)} className={`px-6 py-2 font-black border-x border-slate-700 ${isDraw ? 'bg-indigo-600 text-white' : 'text-slate-600'}`}>{scoreText}</button>
+                                                                                <button onClick={() => incrementGroupGoal(m.id, 'p2')} className={`flex-1 p-2 rounded font-bold ${p2Winner ? 'bg-indigo-600' : ''}`}>{m.p2.name.toUpperCase()}</button>
+                                                                            </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ))}
+                                        <button disabled={!matches.filter(m => m.groupId !== undefined).every(m => getGoalsFromMatch(m).hasScore)} onClick={() => { const qp = parseInt(qualifiersPerGroup, 10); if (!Number.isFinite(qp) || qp < 1) { alert('Imposta almeno 1 qualificato per girone'); return; } let all = []; groups.forEach(g => all = [...all, ...calculateStandings(g.id).slice(0, qp)]); if (all.length < 2) { alert('Non ci sono abbastanza squadre qualificate'); return; } startKnockout(all); }} className="w-full bg-indigo-600 py-4 font-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">FASE FINALE</button>
+                                    </div>
+                                ) : (
+                                    <BracketView bracket={bracket} onSetWinner={setBracketWinner} winner={winner} resetTournament={resetTournament} />
+                                )}
+                            </div>
+                        )}
+                    </main>
+                    <footer className="mt-10 text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">Budapest 26 Edition</footer>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
