@@ -217,6 +217,9 @@
             const [groups, setGroups] = useState(() => getSafeJSON('tm_groups', []));
             const [numGroupsConfig, setNumGroupsConfig] = useState(() => parseInt(localStorage.getItem('tm_num_groups') || '1'));
             const [qualifiersPerGroup, setQualifiersPerGroup] = useState(() => parseInt(localStorage.getItem('tm_qualifiers') || '2'));
+            const [groupStage, setGroupStage] = useState(() => parseInt(localStorage.getItem('tm_group_stage') || '1'));
+            const [nextNumGroups, setNextNumGroups] = useState(() => parseInt(localStorage.getItem('tm_next_num_groups') || '1'));
+            const [nextQualifiersPerGroup, setNextQualifiersPerGroup] = useState(() => parseInt(localStorage.getItem('tm_next_qualifiers') || '2'));
 
             useEffect(() => {
                 localStorage.setItem('tm_players', JSON.stringify(players));
@@ -228,8 +231,11 @@
                 localStorage.setItem('tm_groups', JSON.stringify(groups));
                 localStorage.setItem('tm_num_groups', numGroupsConfig);
                 localStorage.setItem('tm_qualifiers', qualifiersPerGroup);
+                localStorage.setItem('tm_group_stage', groupStage);
+                localStorage.setItem('tm_next_num_groups', nextNumGroups);
+                localStorage.setItem('tm_next_qualifiers', nextQualifiersPerGroup);
                 localStorage.setItem('tm_bracket', JSON.stringify(bracket));
-            }, [players, tournamentMode, tournamentStarted, matches, round, winner, groups, numGroupsConfig, qualifiersPerGroup, bracket]);
+            }, [players, tournamentMode, tournamentStarted, matches, round, winner, groups, numGroupsConfig, qualifiersPerGroup, groupStage, nextNumGroups, nextQualifiersPerGroup, bracket]);
 
             const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
 
@@ -309,11 +315,18 @@
             };
 
             const startGroups = () => {
-                if (players.length < numGroupsConfig * 2) return alert('Pochi giocatori per questi gironi!');
+                const ng = parseInt(numGroupsConfig, 10);
+                const qp = parseInt(qualifiersPerGroup, 10);
+                if (!Number.isFinite(ng) || ng < 1) return alert('Numero gironi non valido!');
+                if (!Number.isFinite(qp) || qp < 1) return alert('Numero qualificati non valido!');
+                if (players.length < ng * 2) return alert('Pochi giocatori per questi gironi!');
+                setGroupStage(1);
+                setNextNumGroups(ng);
+                setNextQualifiersPerGroup(qp);
                 const shuffled = shuffle(players);
                 const newGroups = [];
-                for (let i = 0; i < numGroupsConfig; i++) newGroups.push({ id: i, name: `Girone ${String.fromCharCode(65 + i)}`, players: [] });
-                shuffled.forEach((p, idx) => newGroups[idx % numGroupsConfig].players.push(p));
+                for (let i = 0; i < ng; i++) newGroups.push({ id: i, name: `Girone ${String.fromCharCode(65 + i)}`, players: [] });
+                shuffled.forEach((p, idx) => newGroups[idx % ng].players.push(p));
 
                 const allMatches = [];
                 newGroups.forEach(g => {
@@ -340,6 +353,71 @@
                 setMatches(allMatches);
                 setTournamentStarted(true);
                 setRound('Gironi');
+            };
+
+            const getQualifiedTeamsFromGroups = (qp) => {
+                let qualified = [];
+                groups.forEach(g => {
+                    qualified = [...qualified, ...calculateStandings(g.id).slice(0, qp)];
+                });
+                return qualified;
+            };
+
+            const startNextGroupStage = () => {
+                const qpCurrent = parseInt(qualifiersPerGroup, 10);
+                const ngNext = parseInt(nextNumGroups, 10);
+                const qpNext = parseInt(nextQualifiersPerGroup, 10);
+                if (!Number.isFinite(qpCurrent) || qpCurrent < 1) return alert('Numero qualificati (fase corrente) non valido!');
+                if (!Number.isFinite(ngNext) || ngNext < 1) return alert('Numero gironi (fase successiva) non valido!');
+                if (!Number.isFinite(qpNext) || qpNext < 1) return alert('Numero qualificati (fase successiva) non valido!');
+                const qualified = getQualifiedTeamsFromGroups(qpCurrent);
+                if (qualified.length < 2) return alert('Non ci sono abbastanza squadre qualificate');
+                if (qualified.length < ngNext * 2) return alert('Poche squadre qualificate per questi gironi!');
+                setPlayers(qualified);
+                setWinnerState(null);
+                setBracket(null);
+                setNumGroupsConfig(ngNext);
+                setQualifiersPerGroup(qpNext);
+                setGroupStage(groupStage + 1);
+                const shuffled = shuffle(qualified);
+                const newGroups = [];
+                for (let i = 0; i < ngNext; i++) newGroups.push({ id: i, name: `Girone ${String.fromCharCode(65 + i)}`, players: [] });
+                shuffled.forEach((p, idx) => newGroups[idx % ngNext].players.push(p));
+                const allMatches = [];
+                newGroups.forEach(g => {
+                    let temp = [...g.players];
+                    if (temp.length % 2 !== 0) temp.push({ id: `bye-${g.id}`, name: 'BYE', isBye: true });
+                    const n = temp.length;
+                    const matchesByDay = Array.from({ length: n - 1 }, () => []);
+                    let matchCounter = 0;
+                    for (let day = 0; day < n - 1; day++) {
+                        for (let i = 0; i < n / 2; i++) {
+                            const p1 = temp[i], p2 = temp[n - 1 - i];
+                            if (!p1.isBye && !p2.isBye) matchesByDay[day].push({ id: `gm-${g.id}-${Date.now()}-${matchCounter++}`, groupId: g.id, day, p1, p2, goals1: null, goals2: null, winner: null, isDraw: false });
+                        }
+                        temp.splice(1, 0, temp.pop());
+                    }
+                    const dayOrder = shuffle(Array.from({ length: n - 1 }, (_, i) => i));
+                    dayOrder.forEach((oldDay, newDayIdx) => {
+                        const shuffledDayMatches = shuffle(matchesByDay[oldDay]).map(m => ({ ...m, day: newDayIdx + 1 }));
+                        allMatches.push(...shuffledDayMatches);
+                    });
+                });
+                setGroups(newGroups);
+                setMatches(allMatches);
+                setRound('Gironi');
+            };
+
+            const startKnockoutFromGroups = () => {
+                const qpCurrent = parseInt(qualifiersPerGroup, 10);
+                if (!Number.isFinite(qpCurrent) || qpCurrent < 1) return alert('Numero qualificati non valido!');
+                const qualified = getQualifiedTeamsFromGroups(qpCurrent);
+                if (qualified.length === 1) {
+                    setWinnerState(qualified[0]);
+                    return;
+                }
+                if (qualified.length < 2) return alert('Non ci sono abbastanza squadre qualificate');
+                startKnockout(qualified);
             };
 
             const setMatchResult = (id, winnerObj, isDraw = false) => {
@@ -470,6 +548,7 @@
                                 </div>
                                 {round === 'Gironi' ? (
                                     <div className="p-8">
+                                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8">Fase Gironi {groupStage}</div>
                                         {groups.map(g => (
                                             <div key={g.id} className="mb-10">
                                                 <h3 className="text-indigo-500 font-black mb-4 uppercase tracking-widest">{g.name}</h3>
@@ -505,7 +584,42 @@
                                                 })()}
                                             </div>
                                         ))}
-                                        <button disabled={!matches.filter(m => m.groupId !== undefined).every(m => getGoalsFromMatch(m).hasScore)} onClick={() => { const qp = parseInt(qualifiersPerGroup, 10); if (!Number.isFinite(qp) || qp < 1) { alert('Imposta almeno 1 qualificato per girone'); return; } let all = []; groups.forEach(g => all = [...all, ...calculateStandings(g.id).slice(0, qp)]); if (all.length < 2) { alert('Non ci sono abbastanza squadre qualificate'); return; } startKnockout(all); }} className="w-full bg-indigo-600 py-4 font-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">FASE FINALE</button>
+                                        {(() => {
+                                            const allDone = matches.filter(m => m.groupId !== undefined).every(m => getGoalsFromMatch(m).hasScore);
+                                            const qpCurrent = parseInt(qualifiersPerGroup, 10);
+                                            const qualifiedCount = Number.isFinite(qpCurrent) ? getQualifiedTeamsFromGroups(qpCurrent).length : 0;
+                                            if (allDone && qualifiedCount === 1) {
+                                                const champ = getQualifiedTeamsFromGroups(qpCurrent)[0];
+                                                if (champ && !winner) setWinnerState(champ);
+                                                return (
+                                                    <div className="text-center mt-10">
+                                                        <i className="fas fa-crown text-5xl text-yellow-400 mb-3 block"></i>
+                                                        <div className="text-2xl font-black text-white uppercase tracking-tighter">{(champ?.name || '').toUpperCase()}</div>
+                                                        <div className="text-indigo-500 font-black text-xs uppercase mt-2">Campione</div>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div className="bg-slate-900/40 border border-slate-700 rounded-2xl p-6 mt-8">
+                                                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Prossima fase</div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-slate-500 uppercase">Gironi</label>
+                                                            <input type="number" min="1" value={nextNumGroups} onChange={e => setNextNumGroups(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-indigo-400 font-bold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-slate-500 uppercase">Qualificati</label>
+                                                            <input type="number" min="1" value={nextQualifiersPerGroup} onChange={e => setNextQualifiersPerGroup(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-indigo-400 font-bold" />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button disabled={!allDone} onClick={startNextGroupStage} className="flex-1 bg-slate-700 py-3 rounded-xl font-black disabled:opacity-50 disabled:cursor-not-allowed">ALTRI GIRONI</button>
+                                                            <button disabled={!allDone} onClick={startKnockoutFromGroups} className="flex-1 bg-indigo-600 py-3 rounded-xl font-black disabled:opacity-50 disabled:cursor-not-allowed">ELIMINAZIONE</button>
+                                                        </div>
+                                                    </div>
+                                                    {!allDone && <div className="text-slate-500 text-xs font-bold mt-4">Completa tutte le partite per sbloccare la prossima fase.</div>}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ) : (
                                     <BracketView bracket={bracket} onSetWinner={setBracketWinner} winner={winner} resetTournament={resetTournament} />
