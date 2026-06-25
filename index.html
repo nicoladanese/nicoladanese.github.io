@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tournament Mode - Gestore Tornei</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -32,7 +32,9 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-presets="env" data-plugins="transform-react-jsx">
+        /** @jsxRuntime classic */
+        /** @jsx React.createElement */
         const { useState, useEffect, useMemo, useRef } = React;
 
         const FOOTBALL_TEAMS = [
@@ -203,23 +205,38 @@
                 } catch (e) { return defaultValue; }
             };
 
-            const [players, setPlayers] = useState(() => getSafeJSON('tm_players', []));
+            const getSafeInt = (key, defaultValue) => {
+                const parsed = parseInt(localStorage.getItem(key) || `${defaultValue}`, 10);
+                return Number.isFinite(parsed) ? parsed : defaultValue;
+            };
+
+            const getSafeArray = (key) => {
+                const value = getSafeJSON(key, []);
+                return Array.isArray(value) ? value : [];
+            };
+
+            const getSafeBracket = () => {
+                const value = getSafeJSON('tm_bracket', null);
+                return Array.isArray(value) ? value : null;
+            };
+
+            const [players, setPlayers] = useState(() => getSafeArray('tm_players'));
             const [newPlayerName, setNewPlayerName] = useState('');
             const [playerError, setPlayerError] = useState('');
             const [autoGenTotal, setAutoGenTotal] = useState(16);
             const [autoGenError, setAutoGenError] = useState('');
             const [tournamentMode, setTournamentMode] = useState(() => localStorage.getItem('tm_mode') || 'knockout');
             const [tournamentStarted, setTournamentStarted] = useState(() => localStorage.getItem('tm_started') === 'true');
-            const [matches, setMatches] = useState(() => getSafeJSON('tm_matches', []));
+            const [matches, setMatches] = useState(() => getSafeArray('tm_matches'));
             const [round, setRound] = useState(() => localStorage.getItem('tm_round') || '1');
             const [winner, setWinnerState] = useState(() => getSafeJSON('tm_winner', null));
-            const [bracket, setBracket] = useState(() => getSafeJSON('tm_bracket', null));
-            const [groups, setGroups] = useState(() => getSafeJSON('tm_groups', []));
-            const [numGroupsConfig, setNumGroupsConfig] = useState(() => parseInt(localStorage.getItem('tm_num_groups') || '1'));
-            const [qualifiersPerGroup, setQualifiersPerGroup] = useState(() => parseInt(localStorage.getItem('tm_qualifiers') || '2'));
-            const [groupStage, setGroupStage] = useState(() => parseInt(localStorage.getItem('tm_group_stage') || '1'));
-            const [nextNumGroups, setNextNumGroups] = useState(() => parseInt(localStorage.getItem('tm_next_num_groups') || '1'));
-            const [nextQualifiersPerGroup, setNextQualifiersPerGroup] = useState(() => parseInt(localStorage.getItem('tm_next_qualifiers') || '2'));
+            const [bracket, setBracket] = useState(() => getSafeBracket());
+            const [groups, setGroups] = useState(() => getSafeArray('tm_groups'));
+            const [numGroupsConfig, setNumGroupsConfig] = useState(() => getSafeInt('tm_num_groups', 1));
+            const [qualifiersPerGroup, setQualifiersPerGroup] = useState(() => getSafeInt('tm_qualifiers', 2));
+            const [groupStage, setGroupStage] = useState(() => getSafeInt('tm_group_stage', 1));
+            const [nextNumGroups, setNextNumGroups] = useState(() => getSafeInt('tm_next_num_groups', 1));
+            const [nextQualifiersPerGroup, setNextQualifiersPerGroup] = useState(() => getSafeInt('tm_next_qualifiers', 2));
 
             useEffect(() => {
                 localStorage.setItem('tm_players', JSON.stringify(players));
@@ -587,10 +604,10 @@
                                         {(() => {
                                             const allDone = matches.filter(m => m.groupId !== undefined).every(m => getGoalsFromMatch(m).hasScore);
                                             const qpCurrent = parseInt(qualifiersPerGroup, 10);
-                                            const qualifiedCount = Number.isFinite(qpCurrent) ? getQualifiedTeamsFromGroups(qpCurrent).length : 0;
+                                            const qualifiedTeams = Number.isFinite(qpCurrent) ? getQualifiedTeamsFromGroups(qpCurrent) : [];
+                                            const qualifiedCount = qualifiedTeams.length;
                                             if (allDone && qualifiedCount === 1) {
-                                                const champ = getQualifiedTeamsFromGroups(qpCurrent)[0];
-                                                if (champ && !winner) setWinnerState(champ);
+                                                const champ = qualifiedTeams[0];
                                                 return (
                                                     <div className="text-center mt-10">
                                                         <i className="fas fa-crown text-5xl text-yellow-400 mb-3 block"></i>
