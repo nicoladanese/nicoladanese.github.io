@@ -37,28 +37,61 @@
         /** @jsx React.createElement */
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const FOOTBALL_TEAMS = [
-            'AC MILAN','INTER','JUVENTUS','ROMA','LAZIO','NAPOLI','ATALANTA','FIORENTINA','TORINO','BOLOGNA','UDINESE','GENOA','SAMPDORIA','CAGLIARI','PALERMO','PARMA','VERONA','LECCE','BARI','VENEZIA','SASSUOLO','EMPOLI','MONZA',
-            'REAL MADRID','BARCELLONA','ATLETICO MADRID','SEVILLA','VALENCIA','VILLARREAL','ATHLETIC CLUB','REAL SOCIEDAD','BETIS',
-            'MANCHESTER CITY','MANCHESTER UNITED','LIVERPOOL','CHELSEA','ARSENAL','TOTTENHAM','NEWCASTLE','ASTON VILLA','WEST HAM',
-            'BAYERN MONACO','BORUSSIA DORTMUND','RB LIPSIA','BAYER LEVERKUSEN','SCHALKE 04','HAMBURGER SV',
-            'PARIS SAINT-GERMAIN','OLYMPIQUE MARSEILLE','LYON','MONACO','LILLE',
-            'AJAX','PSV','FEYENOORD',
-            'PORTO','BENFICA','SPORTING CP',
-            'CELTIC','RANGERS',
-            'GALATASARAY','FENERBAHCE','BESIKTAS',
-            'OLYMPIACOS','PANATHINAIKOS',
-            'SHANKTAR DONETSK','DINAMO KIEV',
-            'DINAMO ZAGABRIA','RED STAR BELGRADE',
-            'BOCA JUNIORS','RIVER PLATE','FLAMENGO','PALMEIRAS','SAO PAULO','CORINTHIANS','GREMIO','INTERNACIONAL',
-            'AL AHLY','ZAMALEK',
-            'AL HILAL','AL NASSR','AL ITTIHAD',
-            'NEW YORK CITY FC','LA GALAXY','INTER MIAMI',
-            'ITALIA','FRANCIA','SPAGNA','GERMANIA','INGHILTERRA','PORTOGALLO','OLANDA','BELGIO','CROAZIA','SVIZZERA','AUSTRIA','DANIMARCA','SVEZIA','NORVEGIA','IRLANDA','SCOZIA','GALLES','POLONIA','UCRAINA','SERBIA','TURCHIA','GRECIA','REPUBBLICA CECA','UNGHERIA','ROMANIA','BULGARIA',
-            'BRASILE','ARGENTINA','URUGUAY','COLOMBIA','CILE','PARAGUAY','ECUADOR','PERU','MESSICO','STATI UNITI','CANADA','COSTA RICA',
-            'MAROCCO','TUNISIA','ALGERIA','SENEGAL','NIGERIA','CAMERUN','GHANA','EGITTO','SUDAFRICA',
-            'GIAPPONE','COREA DEL SUD','AUSTRALIA','IRAN','ARABIA SAUDITA','QATAR'
+        const CLUB_TEAMS = [
+            'AC MILAN','INTER','JUVENTUS','ROMA','LAZIO','NAPOLI','ATALANTA','FIORENTINA','TORINO','BOLOGNA','UDINESE','GENOA','SAMPDORIA','CAGLIARI','PALERMO','PARMA','VERONA','LECCE','BARI','VENEZIA',
+            'REAL MADRID','BARCELLONA','ATLETICO MADRID','SEVILLA','VALENCIA','VILLARREAL','ATHLETIC CLUB','REAL SOCIEDAD','BETIS','CELTA VIGO','DEPORTIVO LA CORUNA','MALAGA','ESPANYOL','OSASUNA','GETAFE','ALAVES','GIRONA','LAS PALMAS','GRANADA','RAYO VALLECANO',
+            'MANCHESTER CITY','MANCHESTER UNITED','LIVERPOOL','CHELSEA','ARSENAL','TOTTENHAM','NEWCASTLE UNITED','ASTON VILLA','WEST HAM UNITED','EVERTON','LEEDS UNITED','LEICESTER CITY','NOTTINGHAM FOREST','WOLVERHAMPTON','BRIGHTON','SOUTHAMPTON','CRYSTAL PALACE','FULHAM','BRENTFORD','BURNLEY',
+            'BAYERN MONACO','BORUSSIA DORTMUND','RB LIPSIA','BAYER LEVERKUSEN','SCHALKE 04','HAMBURGER SV','WERDER BREMA','BORUSSIA MONCHENGLADBACH','EINTRACHT FRANCOFORTE','WOLFSBURG','STUTTGART','HERTHA BERLINO','UNION BERLINO','COLONIA','FRIBURGO','HOFFENHEIM','MAINZ 05','AUGSBURG','HANOVER 96','ST. PAULI',
+            'PARIS SAINT-GERMAIN','OLYMPIQUE MARSIGLIA','LIONE','MONACO','LILLE','RENNES','NANTES','NIZZA','LENS','STRASBURGO','BORDEAUX','TOLOSA','SAINT-ETIENNE','MONTPELLIER','BREST','REIMS','ANGERS','AUXERRE','LE HAVRE','METZ',
+            'AJAX','PSV','FEYENOORD','AZ ALKMAAR','TWENTE','UTRECHT','VITESSE','HEERENVEEN','GRONINGEN','NEC NIJMEGEN',
+            'PORTO','BENFICA','SPORTING CP','BRAGA','VITORIA GUIMARAES','BOAVISTA','ESTORIL','FAMALICAO','NACIONAL','MARITIMO',
+            'ANDERLECHT','CLUB BRUGGE','GENK','STANDARD LIEGI','GENT',
+            'GALATASARAY','FENERBAHCE','BESIKTAS','TRABZONSPOR','ISTANBUL BASAKSEHIR',
+            'CELTIC','RANGERS','ABERDEEN','HEARTS',
+            'OLYMPIACOS','PANATHINAIKOS','PAOK','AEK ATENE',
+            'SHAKHTAR DONETSK','DINAMO KIEV','DNIPRO-1','ZORYA LUHANSK',
+            'DINAMO ZAGABRIA','HAJDUK SPALATO','RED STAR BELGRADE','PARTIZAN BELGRADE','MARIBOR','OLIMPIJA LJUBLJANA','SPARTA PRAGA','SLAVIA PRAGA',
+            'SALISBURGO','RAPID VIENNA','STURM GRAZ','BASILEA','YOUNG BOYS','COPENAGHEN','MALMO FF','AIK','ROSENBORG','BODO/GLIMT',
+            'INTER MIAMI','LA GALAXY','NEW YORK CITY FC','LOS ANGELES FC','SEATTLE SOUNDERS','CLUB AMERICA','CHIVAS GUADALAJARA','CRUZ AZUL','TIGRES UANL','MONTERREY',
+            'BOCA JUNIORS','RIVER PLATE','FLAMENGO','PALMEIRAS','SAO PAULO','CORINTHIANS','GREMIO','INTERNACIONAL','SANTOS','CRUZEIRO','ATLETICO MINEIRO','BOTAFOGO','VASCO DA GAMA','PENAROL','NACIONAL MONTEVIDEO','OLIMPIA','CERRO PORTENO','COLO-COLO','UNIVERSIDAD DE CHILE','LDU QUITO',
+            'AL AHLY','ZAMALEK','WYDAD CASABLANCA','ESPERANCE DE TUNISI','AL HILAL','AL NASSR','AL ITTIHAD','KASHIMA ANTLERS','URAWA RED DIAMONDS','JEONBUK HYUNDAI MOTORS'
         ];
+
+        const NATIONAL_TEAMS = [
+            'ARGENTINA','AUSTRALIA','AUSTRIA','ALGERIA','ARABIA SAUDITA','BELGIO','BOLIVIA','BOSNIA ED ERZEGOVINA','BRASILE','BULGARIA',
+            'CAMERUN','CANADA','CILE','CINA','COLOMBIA','COREA DEL SUD','COSTA D\'AVORIO','COSTA RICA','CROAZIA','DANIMARCA',
+            'ECUADOR','EGITTO','EMIRATI ARABI UNITI','FRANCIA','GALLES','GEORGIA','GERMANIA','GIAPPONE','GHANA','GRECIA',
+            'HONDURAS','INGHILTERRA','IRAN','IRAQ','IRLANDA','ISLANDA','ISRAELE','ITALIA','MAROCCO','MESSICO',
+            'MALI','NIGERIA','NORVEGIA','NUOVA ZELANDA','OLANDA','PANAMA','PARAGUAY','PERU','POLONIA','PORTOGALLO',
+            'QATAR','REPUBBLICA CECA','ROMANIA','SCOZIA','SENEGAL','SERBIA','SLOVACCHIA','SLOVENIA','SPAGNA','STATI UNITI',
+            'SUDAFRICA','SVEZIA','SVIZZERA','TUNISIA','TURCHIA','UCRAINA','URUGUAY','UZBEKISTAN','VENEZUELA','UNGHERIA'
+        ];
+
+        const BRAWL_STARS_BRAWLERS = [
+            'SHELLY','COLT','BULL','BROCK','BOMBARDINO','NITA','EL PRIMO','POCHO','ROSA',
+            'STECCA','JESSIE','DYNAMIKE','BARRYL','PENNY','TICK','CARL','8-BIT','JACKY','GUS',
+            'BO','PIPER','PAM','FRANK','BIBI','BEA','EMZ','GELINDO','IRIS','COLETTE','EDGAR','STU','BELLE','GROM','GRIFF','ASH','LOLA','BONNIE','SAM','MANDY','MAISIE',
+            'HANK','PEARL','LARRY E LAWRIE','ANGELO','BERRY','SHADE','MEEPLE','TRUNK','BOLT',
+            'MORTIS','TARA','EUGENIO','MISTER P','MAXINE','SEMINO','LOU','BYRON','RINGHIO','SQUEAK','BUZZ','FANG','EVE','JANET','OTIS','BUSTER','GRAY','R-T','WILLOW','DOUG',
+            'CHUCK','CHARLIE','MICO','MELODIE','LILY','CLANCY','MOE','JUJU','OLLIE','LUMI','FINX','JAE-YONG','ALLI','MINA','ZIGGY','GIGI','GLOWY','NAJIA','DAMIAN','STARR NOVA','WENDY',
+            'SPIKE','CORVO','LEON','SANDY','ENERGETIK','AMBRA','MEG','CHESTER','CORDELIUS','KIT','DRACO','KENJI','PIERCE','NORI',
+            'KAZE','SIRIUS'
+        ];
+
+        const TOP_TENNIS_PLAYERS = [
+            'JANNIK SINNER','CARLOS ALCARAZ','ALEXANDER ZVEREV','NOVAK DJOKOVIC','FELIX AUGER-ALIASSIME','BEN SHELTON','TAYLOR FRITZ','ALEX DE MINAUR','LORENZO MUSETTI','DANIIL MEDVEDEV',
+            'ALEXANDER BUBLIK','ANDREY RUBLEV','FLAVIO COBOLLI','JIRI LEHECKA','CASPER RUUD','KAREN KHACHANOV','VALENTIN VACHEROT','TOMMY PAUL','FRANCES TIAFOE','FRANCISCO CERUNDOLO',
+            'LEARNER TIEN','LUCIANO DARDERI','CAMERON NORRIE','ALEJANDRO DAVIDOVICH FOKINA','ARTHUR FILS','ARTHUR RINDERKNECH','JAKUB MENSIK','JACK DRAPER','TOMAS MARTIN ETCHEVERRY','CORENTIN MOUTET',
+            'JOAO FONSECA','BRANDON NAKASHIMA','TALLON GRIEKSPOOR','UGO HUMBERT','DENIS SHAPOVALOV','GABRIEL DIALLO','ALEX MICHELSEN','JAUME MUNAR','HOLGER RUNE','SEBASTIAN KORDA',
+            'TOMAS MACHAC','RAFAEL JODAR','ALEJANDRO TABILO','ZIZOU BERGS','MARIANO NAVONE','ADRIAN MANNARINO','TERENCE ATMANE','ETHAN QUINN','NUNO BORGES','FABIAN MAROZSAN'
+        ];
+
+        const AUTO_GEN_CATEGORIES = {
+            national: { label: 'SQUADRE NAZIONALI', items: NATIONAL_TEAMS },
+            clubs: { label: 'CLUB', items: CLUB_TEAMS },
+            brawlers: { label: 'BRAWLERS', items: BRAWL_STARS_BRAWLERS },
+            tennis: { label: 'TENNISTI', items: TOP_TENNIS_PLAYERS }
+        };
 
         // --- COMPONENT: BRACKET VIEW ---
         function BracketView({ bracket, onSetWinner, winner, resetTournament }) {
@@ -225,6 +258,7 @@
             const [playerError, setPlayerError] = useState('');
             const [autoGenTotal, setAutoGenTotal] = useState(16);
             const [autoGenError, setAutoGenError] = useState('');
+            const [showAutoGenMenu, setShowAutoGenMenu] = useState(false);
             const [tournamentMode, setTournamentMode] = useState(() => localStorage.getItem('tm_mode') || 'knockout');
             const [tournamentStarted, setTournamentStarted] = useState(() => localStorage.getItem('tm_started') === 'true');
             const [matches, setMatches] = useState(() => getSafeArray('tm_matches'));
@@ -275,31 +309,36 @@
                 return copy.slice(0, count);
             };
 
-            const autoGenerateTeams = () => {
+            const openAutoGenMenu = () => {
                 const target = parseInt(autoGenTotal, 10);
                 if (!Number.isFinite(target) || target < 2) {
                     setAutoGenError('Inserisci un numero valido (min 2)');
                     return;
                 }
-                if (target > FOOTBALL_TEAMS.length) {
-                    setAutoGenError(`Numero troppo alto (max ${FOOTBALL_TEAMS.length})`);
-                    return;
-                }
-                const needed = target - players.length;
-                if (needed <= 0) {
-                    setAutoGenError(`Hai già ${players.length} squadre`);
-                    return;
-                }
-                const existing = new Set(players.map(p => (p.name || '').toUpperCase()));
-                const available = FOOTBALL_TEAMS.filter(n => !existing.has(n));
-                if (needed > available.length) {
-                    setAutoGenError('Non ci sono abbastanza squadre disponibili');
-                    return;
-                }
-                const picked = pickRandom(available, needed);
-                const baseId = Date.now();
-                setPlayers([...players, ...picked.map((name, idx) => ({ id: baseId + idx, name }))]);
                 setAutoGenError('');
+                setShowAutoGenMenu(true);
+            };
+
+            const autoGenerateTeams = (categoryKey) => {
+                const category = AUTO_GEN_CATEGORIES[categoryKey];
+                if (!category) return;
+
+                const target = parseInt(autoGenTotal, 10);
+                if (!Number.isFinite(target) || target < 2) {
+                    setAutoGenError('Inserisci un numero valido (min 2)');
+                    setShowAutoGenMenu(false);
+                    return;
+                }
+                if (target > category.items.length) {
+                    setAutoGenError(`Numero troppo alto per ${category.label} (max ${category.items.length})`);
+                    setShowAutoGenMenu(false);
+                    return;
+                }
+                const picked = pickRandom(category.items, target);
+                const baseId = Date.now();
+                setPlayers(picked.map((name, idx) => ({ id: baseId + idx, name })));
+                setAutoGenError('');
+                setShowAutoGenMenu(false);
                 if (playerError) setPlayerError('');
             };
 
@@ -532,11 +571,25 @@
                                     <div className="flex items-end gap-3 mb-3">
                                         <div className="flex-1">
                                             <label className="text-[10px] font-black text-slate-500 uppercase">Auto-generazione (test)</label>
-                                            <input type="number" min="2" max={FOOTBALL_TEAMS.length} value={autoGenTotal} onChange={e => { setAutoGenTotal(e.target.value); if (autoGenError) setAutoGenError(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-indigo-400 font-black" />
+                                            <input type="number" min="2" value={autoGenTotal} onChange={e => { setAutoGenTotal(e.target.value); if (autoGenError) setAutoGenError(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-indigo-400 font-black" />
                                         </div>
-                                        <button type="button" onClick={autoGenerateTeams} className="bg-slate-700 px-6 py-3 rounded-xl font-black hover:bg-slate-600">GENERA</button>
+                                        <button type="button" onClick={openAutoGenMenu} className="bg-slate-700 px-6 py-3 rounded-xl font-black hover:bg-slate-600">GENERA</button>
                                     </div>
                                     {autoGenError && <div className="text-red-400 text-xs font-bold mb-6">{autoGenError}</div>}
+                                    {showAutoGenMenu && (
+                                        <div className="mb-6 bg-slate-900/60 border border-slate-700 rounded-2xl p-4">
+                                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Cosa vuoi generare?</div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {Object.entries(AUTO_GEN_CATEGORIES).map(([key, category]) => (
+                                                    <button key={key} type="button" onClick={() => autoGenerateTeams(key)} className="text-left bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 hover:border-indigo-500">
+                                                        <div className="font-black text-white text-sm">{category.label}</div>
+                                                        <div className="text-slate-500 text-[10px] uppercase mt-1">Max {category.items.length}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <button type="button" onClick={() => setShowAutoGenMenu(false)} className="mt-3 text-slate-500 hover:text-white text-xs font-black uppercase">Annulla</button>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto custom-scrollbar">
                                         {players.map(p => (
                                             <div key={p.id} className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
